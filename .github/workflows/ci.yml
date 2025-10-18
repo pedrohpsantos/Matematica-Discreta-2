@@ -27,34 +27,60 @@ jobs:
     - name: Instalar dependências (SDL2)
       run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
 
-    # 3. Compilação de cada arquivo .c em um executável e verificação
-    - name: Compilando e Verificando Executáveis C
+    # 3. Verificação de sintaxe e compilação completa
+    - name: Verificação de Sintaxe e Compilação de Executáveis
       run: |
-        # Este script agora compila cada arquivo .c em um executável separado
-        # e verifica se o arquivo foi criado e possui permissão de execução.
+        # FASE 1: Verifica a sintaxe de todos os arquivos .c compilando-os para arquivos objeto (.o).
+        # Isso é mais rápido e identifica erros de compilação antes da linkagem.
+        echo "===================================================="
+        echo "FASE 1: Verificando a sintaxe de todos os arquivos C..."
+        echo "===================================================="
         find . -type f -name "*.c" -print0 | while IFS= read -r -d $'\0' file; do
-          # Define o nome do executável removendo a extensão .c
-          EXECUTABLE_FILE="${file%.c}"
+          OBJECT_FILE="${file%.c}.o"
+          echo "--> Verificando sintaxe de: $file"
           
-          echo "----------------------------------------------------"
-          echo "Processando: $file"
-          
-          # Tenta compilar o arquivo. O comando agora gera um executável completo.
+          # Tenta compilar para arquivo objeto (-c flag)
           if [[ "$file" == *"aula12/estrelas.c"* ]]; then
-            echo "Compilando (com SDL2): $file -> $EXECUTABLE_FILE"
+            gcc -c "$file" -o "$OBJECT_FILE" $(sdl2-config --cflags --libs) -lm
+          else
+            gcc -c "$file" -o "$OBJECT_FILE" -lm
+          fi
+          
+          # Verifica se a compilação do objeto falhou ($? armazena o código de saída do último comando)
+          if [ $? -ne 0 ]; then
+            echo "FALHA DE SINTAXE: O arquivo '$file' não pôde ser compilado."
+            exit 1
+          else
+            echo "Sintaxe OK."
+          fi
+        done
+
+        # FASE 2: Compila cada arquivo .c em um executável e verifica a sua criação.
+        # Esta fase só roda se a verificação de sintaxe passar para todos os arquivos.
+        echo ""
+        echo "===================================================="
+        echo "FASE 2: Gerando e verificando os executáveis..."
+        echo "===================================================="
+        find . -type f -name "*.c" -print0 | while IFS= read -r -d $'\0' file; do
+          EXECUTABLE_FILE="${file%.c}"
+          echo "--> Gerando executável para: $file"
+          
+          # Compilação completa para gerar o executável final
+          if [[ "$file" == *"aula12/estrelas.c"* ]]; then
             gcc "$file" -o "$EXECUTABLE_FILE" $(sdl2-config --cflags --libs) -lm
           else
-            echo "Compilando: $file -> $EXECUTABLE_FILE"
             gcc "$file" -o "$EXECUTABLE_FILE" -lm
           fi
           
           # Verifica se o executável foi criado (-f) e se tem permissão de execução (-x)
           if [ -f "$EXECUTABLE_FILE" ] && [ -x "$EXECUTABLE_FILE" ]; then
-            echo "SUCESSO: Executável '$EXECUTABLE_FILE' criado com sucesso."
+            echo "SUCESSO: Executável '$EXECUTABLE_FILE' gerado."
           else
-            echo "FALHA: Não foi possível criar o executável para '$file'."
-            # Encerra o script com um código de erro para fazer o workflow falhar
+            echo "FALHA NA LINKAGEM: Não foi possível gerar o executável para '$file'."
             exit 1
           fi
-          echo "----------------------------------------------------"
         done
+
+        echo ""
+        echo "CI Concluído com Sucesso! Todos os arquivos foram compilados e os executáveis gerados."
+
