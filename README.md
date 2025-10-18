@@ -55,3 +55,7 @@ gcc q3.c -o divisor_analyzer -lm
 # Q04 — Code Analysis
 gcc q4.c -o q4_analysis
 ./q4_analysis
+```
+---
+## Questão 4 (Verdadeiro ou Falso)
+### V, F, V, V, F, V, V
