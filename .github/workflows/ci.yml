@@ -1,35 +1,60 @@
+# Nome do Workflow para o GitHub Actions
 name: C/C++ CI
 
+# Gatilhos (Triggers): Define quando o workflow deve ser executado
 on:
+  # Executa em pushes para a branch "main"
   push:
     branches: [ "main" ]
+  # Executa em pull requests direcionados à branch "main"
   pull_request:
     branches: [ "main" ]
 
+# Jobs: Define uma ou mais tarefas a serem executadas
 jobs:
+  # O nome do job é "build"
   build:
+    # A máquina virtual onde o job será executado (Ubuntu mais recente)
     runs-on: ubuntu-latest
 
+    # Passos (Steps): Sequência de tarefas que compõem o job
     steps:
+    # 1. Checkout do código do repositório
     - name: Checkout do Repositório
       uses: actions/checkout@v4
 
+    # 2. Instalação de dependências (ex: biblioteca SDL2 para projetos gráficos)
     - name: Instalar dependências (SDL2)
       run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
 
-    - name: Compilando os arquivos C (sem linkar)
+    # 3. Compilação de cada arquivo .c em um executável e verificação
+    - name: Compilando e Verificando Executáveis C
       run: |
-        # Este script agora usa a flag -c para apenas compilar e verificar a sintaxe,
-        # gerando arquivos .o (objetos) em vez de executáveis.
-        # Isso garante que todo o seu código está sintaticamente correto.
+        # Este script agora compila cada arquivo .c em um executável separado
+        # e verifica se o arquivo foi criado e possui permissão de execução.
         find . -type f -name "*.c" -print0 | while IFS= read -r -d $'\0' file; do
-          OBJECT_FILE="${file%.c}.o"
+          # Define o nome do executável removendo a extensão .c
+          EXECUTABLE_FILE="${file%.c}"
           
+          echo "----------------------------------------------------"
+          echo "Processando: $file"
+          
+          # Tenta compilar o arquivo. O comando agora gera um executável completo.
           if [[ "$file" == *"aula12/estrelas.c"* ]]; then
-            echo "Compilando (com SDL2): $file -> $OBJECT_FILE"
-            gcc -c "$file" -o "$OBJECT_FILE" $(sdl2-config --cflags --libs) -lm
+            echo "Compilando (com SDL2): $file -> $EXECUTABLE_FILE"
+            gcc "$file" -o "$EXECUTABLE_FILE" $(sdl2-config --cflags --libs) -lm
           else
-            echo "Compilando: $file -> $OBJECT_FILE"
-            gcc -c "$file" -o "$OBJECT_FILE" -lm
+            echo "Compilando: $file -> $EXECUTABLE_FILE"
+            gcc "$file" -o "$EXECUTABLE_FILE" -lm
           fi
+          
+          # Verifica se o executável foi criado (-f) e se tem permissão de execução (-x)
+          if [ -f "$EXECUTABLE_FILE" ] && [ -x "$EXECUTABLE_FILE" ]; then
+            echo "SUCESSO: Executável '$EXECUTABLE_FILE' criado com sucesso."
+          else
+            echo "FALHA: Não foi possível criar o executável para '$file'."
+            # Encerra o script com um código de erro para fazer o workflow falhar
+            exit 1
+          fi
+          echo "----------------------------------------------------"
         done
